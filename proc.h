@@ -1,3 +1,11 @@
+/*pazit--------------------------------------------*/
+#define NUMSIG 32  
+#define defualtHandlerAdd 0xFFFF  //address for defalt handlers
+typedef void (*sighandler_t)(int); 
+#define SIGALRM 14  //Alarm signal number
+/*------------------------------------------------*/
+
+
 // Per-CPU state
 struct cpu {
   uchar apicid;                // Local APIC ID
@@ -63,6 +71,21 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+/*pazit---------------------------------------------------*/
+int pending[NUMSIG];    //wich signal is pending now,a bitset
+sighandler_t sighandlers[NUMSIG];
+
+uint procHandlingSigNow;  /*initial to 0,set to 1 whenever process handling signal*/
+struct trapframe *tfToRestore;/*holds the backup of current tf to restore it to tf after finishing handle a signal*/
+
+uint sigretAdd;  /*keep the address of the  function which calls to sigreturn implicitly*/
+
+  int alarm_ticks_num;       // Countdown till SIGALRM is generated
+
+
+/*--------------------------------------------------------*/
+
+
 };
 
 // Process memory is laid out contiguously, low addresses first:
@@ -70,3 +93,8 @@ struct proc {
 //   original data and bss
 //   fixed-size stack
 //   expandable heap
+
+void Alarm();
+
+
+

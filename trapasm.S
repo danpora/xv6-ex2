@@ -1,5 +1,12 @@
 #include "mmu.h"
 
+/*pazit--------------------------------------------*/
+.globl sigretimplicit  //for ret add calculate
+sigretimplicit:
+ addl $4,%esp
+ ret 
+/*-------------------------------------------------*/
+
   # vectors.S sends all traps here.
 .globl alltraps
 alltraps:
@@ -18,14 +25,34 @@ alltraps:
   movw %ax, %fs
   movw %ax, %gs
 
+
+
   # Call trap(tf), where tf=%esp
   pushl %esp
   call trap
   addl $4, %esp
 
+
+/*pazit--------------------------------------------*/
+/*
+# Call trap(tf), where tf=%esp
+  pushl %esp
+  call trap
+  call handling_signal
+  addl $4, %esp
+*/
+/*------------------------------------------------*/
+
+
   # Return falls through to trapret...
 .globl trapret
 trapret:
+
+/*pazit--------------------------------------------*/
+  pushl %esp
+  call handling_signal  //calling the function to handle signal from ks
+  addl $4, %esp
+/*------------------------------------------------*/
   popal
   popl %gs
   popl %fs

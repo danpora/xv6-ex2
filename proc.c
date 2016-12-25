@@ -50,6 +50,22 @@ found:
   p->state = EMBRYO;
   p->pid = nextpid++;
 
+/*pazit-------------------------------------------------------*/
+//initial the pending array to 0 and the handlers array to def add
+
+for(int i=0;i<NUMSIG;i++){
+ p -> pending[i] = 0;
+}
+for(int i=0;i<NUMSIG;i++){
+ //p -> pending[i] = 0;
+ p ->sighandlers[i] = (sighandler_t)defualtHandlerAdd;
+}
+//initial tick num
+  p->alarm_ticks_num = 0;
+
+
+/*-----------------------------------------------------------*/
+
   release(&ptable.lock);
 
   // Allocate kernel stack.
@@ -158,6 +174,9 @@ fork(void)
   np->sz = proc->sz;
   np->parent = proc;
   *np->tf = *proc->tf;
+
+  np->alarm_ticks_num = proc->alarm_ticks_num;  //pazit
+
 
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
@@ -483,3 +502,85 @@ procdump(void)
     cprintf("\n");
   }
 }
+
+/*pazit---------------------------------------------------*/
+
+/*---------------signal---------------*/
+
+sighandler_t 
+signal(int sigNum, sighandler_t newHandler){
+ 
+ if(sigNum <0 || sigNum > (NUMSIG-1)){  //this signal doesn't exist in the system 
+  return (sighandler_t) (-1);
+ }
+//saving to be able to return the handler that's currently linked to signal with the number sigNum
+ sighandler_t handlerToReturn = proc -> sighandlers[sigNum]; 
+
+ proc -> sighandlers[sigNum]=newHandler;  //link the new handler to this signal
+
+return handlerToReturn;  //return the previous to newHandler handler
+
+}
+
+/*---------------sigsend---------------*/
+
+int 
+sigsend(int Pid, int sigNum){
+ 
+ if( (Pid < 0) || (sigNum < 0) || (sigNum > (NUMSIG-1)) ){
+   return (-1);
+ }
+/*changing the killSig code to ajust to sendSig call:*/
+  struct proc *p;
+  acquire(&ptable.lock);
+  
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->pid == Pid){
+      /*if this is the pid of the running process, update  to 1 the bit in index of this signal number in its var pending*/
+       p -> pending[sigNum] = 1; 
+      // Wake process from sleep if necessary:
+     // if(p->state == SLEEPING)
+       // p->state = RUNNABLE;
+      release(&ptable.lock);
+      return 0;  //signal sent successfully
+    }
+  }
+  release(&ptable.lock);
+  return -1; /*signal couldnt be sent successfully for this pid is not a known one in this sys*/
+}
+
+/*---------------sigreturn---------------*/
+
+int 
+sigreturn(void){
+ cprintf("proc.c : sigreturn for process %d \n",proc->pid);
+ /*memcpy(dst, src, sizeof dst); , dst and src dont overlap*/
+ // put back in tf what was backed up
+ memmove( proc -> tf, &(proc -> tfToRestore), sizeof(*(proc -> tf)) );
+ proc -> procHandlingSigNow = 0;  //finished handle the sig
+ return 0;
+}
+/*--------------------------------------------------------*/
+
+//-----------sigAlarm---------------------
+
+void
+Alarm()
+{
+  struct proc *p;
+
+  acquire(&ptable.lock);
+  
+//decrease the number of ticks by 1 for every process
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+
+    if(p->alarm_ticks_num > 0) {  //if there are more ticks to wait
+      p->alarm_ticks_num--;
+      if(p->alarm_ticks_num == 0) { /*we waited the required num of ticks - set the 14 signal pending to 1*/
+        p->pending[SIGALRM] = 1;
+      }
+    }
+  }
+  release(&ptable.lock);
+}
+

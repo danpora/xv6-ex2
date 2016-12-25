@@ -1,6 +1,8 @@
 struct stat;
 struct rtcdate;
 
+typedef void (*sighandler_t)(int);  //pazit
+
 // system calls
 int fork(void);
 int exit(void) __attribute__((noreturn));
@@ -23,6 +25,14 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+
+/*pazit---------------------------------------------------*/
+sighandler_t signal(int, sighandler_t); //1.2
+int sigsend(int, int);  //1.3
+int sigreturn(void); //1.4
+void alarm(int ticksNum);//1.5
+
+/*--------------------------------------------------------*/
 
 // ulib.c
 int stat(char*, struct stat*);

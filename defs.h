@@ -10,6 +10,8 @@ struct sleeplock;
 struct stat;
 struct superblock;
 
+typedef void (*sighandler_t)(int); //pazit
+
 // bio.c
 void            binit(void);
 struct buf*     bread(uint, uint);
@@ -117,6 +119,16 @@ int             wait(void);
 void            wakeup(void*);
 void            yield(void);
 
+/*pazit-----------------------------------------------------*/
+sighandler_t signal(int signum, sighandler_t handler);  //1.2
+
+int sigsend(int pid, int signum);   //1.3
+
+int sigreturn(void); //1.4
+
+
+/*----------------------------------------------------------*/
+
 // swtch.S
 void            swtch(struct context**, struct context*);
 
@@ -181,6 +193,13 @@ void            switchuvm(struct proc*);
 void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);
 void            clearpteu(pde_t *pgdir, char *uva);
+
+/*pazit----------------------------------------------*/
+void sigretimplicit();
+void alltraps();
+
+/*----------------------------------------------------*/
+
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

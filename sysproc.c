@@ -89,3 +89,51 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+
+/*pazit---------------------------------------------------*/
+/*---------------signal---------------*/
+int
+sys_signal(void){
+ int sig_Num;
+ //int handler;
+ sighandler_t handler;
+
+ cprintf("sysproc.c : sys_signal nom  for process %d \n",proc->pid);
+//no signal has negative num 
+ if(argint(0,&sig_Num) < 0){   
+   return (-1);
+ }
+  //no handler for this signal - print what defult handler should print
+ if(argint(1,(int*)&handler) < 0){
+   return (-1);
+ }
+
+
+ return (int)(signal(sig_Num, (sighandler_t)handler));
+
+}
+/*---------------sigsend---------------*/
+int
+sys_sigsend(void){
+
+ int pid;
+ int sig_Num;
+ cprintf("sysproc.c : sys_sigsend nom.  for process %d \n",proc->pid);
+
+ if((argint(0,&pid) < 0) || (argint(1,&sig_Num) < 0) || (argint(1,&sig_Num) > NUMSIG)){
+   return (-1);
+ }
+
+ return sigsend(pid,sig_Num);
+
+}
+/*---------------sigreturn---------------*/
+int 
+sys_sigreturn(void){
+ cprintf("sysproc.c : sys_sigreturn for process %d \n",proc->pid);
+ return (sigreturn());
+}
+
+/*--------------------------------------------------------*/
+

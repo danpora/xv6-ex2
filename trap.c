@@ -14,6 +14,77 @@ extern uint vectors[];  // in vectors.S: array of 256 entry pointers
 struct spinlock tickslock;
 uint ticks;
 
+
+
+
+/*pazit---------------------------------------------------*/
+
+void defaultSigHandler(int sigNum){
+cprintf("A signal number %d was accepted by process %d",sigNum,proc->pid);
+}
+
+/*
+void pushHandlingSig(int sigIdx){
+  proc->pending[sigIdx] = 0;
+  int* SP =(int*)proc->tf->esp;  
+  SP--1;
+  *((uint*) SP ) = proc->tf->eip;
+  SP--1;
+  *((uint*) SP ) = sigIdx;
+  SP--1;
+  *((uint*) SP ) = proc->sigretAdd;   
+  proc->tf->eip = (uint)proc->sighandlers[sigIdx];
+}
+*/
+
+
+void pushHandlingSig(int sigIdx){
+
+  proc->pending[sigIdx] = 0;
+  proc->tf->esp -=4;
+  *((uint*) proc->tf->esp ) = proc->tf->eip;
+  /*push into user stack the sig number 4 bytes under stack pointer */
+  proc->tf->esp -=4;
+  *((uint*) proc->tf->esp ) = sigIdx;
+   /*push the sireturn systemcall_function after the signal num into stack, 8 bytes under stack pointer*/
+  proc->tf->esp -=4;
+  *((uint*) proc->tf->esp ) = proc->sigretAdd;  /*implicit call to sigreturn system call*/
+  /*execute the handler of this sig num*/
+  proc->tf->eip = (uint)proc->sighandlers[sigIdx];
+}
+
+
+
+
+
+/*check the pending var to see if theres a signal waiting to be executed, if there are, set to 0 the sig_bit in the handkers array, store the current trap in tfToRestore var, put the suitable handler to exacute,set to 1 the procHandlingSigNow var */
+
+void handling_signal(void){ 
+
+ if(proc ==0){return;}  //no user proc running
+ //if(xchg(&(proc->procHandlingSigNow),1) ==1){return;} /*already //handling signal*/
+ int sigIdx=0;
+ for(sigIdx=0;sigIdx<NUMSIG; sigIdx++){
+    if(proc->pending[sigIdx] == 1){  //faund  next pending sig
+        proc->pending[sigIdx] = 0;
+      if(proc->sighandlers[sigIdx] == (sighandler_t)defualtHandlerAdd){
+         defaultSigHandler(sigIdx);/*no extern handler - go to def handler*/
+         proc->pending[sigIdx] = 0;
+      }
+      else{
+	pushHandlingSig(sigIdx);
+
+     }
+
+   }
+
+ }
+
+}
+
+/*--------------------------------------------------------*/
+
+
 void
 tvinit(void)
 {
@@ -31,6 +102,20 @@ idtinit(void)
 {
   lidt(idt, sizeof(idt));
 }
+/*pazit--------------------------------------------------*/
+void sys_alarm(void)
+{
+  int ticksNum;
+  argint(0, &ticksNum);
+ 
+  if(argint(0, &ticksNum) < 0)
+    return;
+
+ //cprintf("\ntrap: sys_alarm: ticksNum= %d \n",ticksNum);
+
+  proc->alarm_ticks_num = ticksNum;  //get the num of ticks to wait from syscall
+}
+/*--------------------------------------------------------*/
 
 //PAGEBREAK: 41
 void
@@ -53,8 +138,11 @@ trap(struct trapframe *tf)
       ticks++;
       wakeup(&ticks);
       release(&tickslock);
+      Alarm();
+
     }
     lapiceoi();
+
     break;
   case T_IRQ0 + IRQ_IDE:
     ideintr();

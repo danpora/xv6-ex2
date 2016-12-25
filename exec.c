@@ -7,6 +7,19 @@
 #include "x86.h"
 #include "elf.h"
 
+
+/*pazit--------------------------------------------*/
+/*
+//void sigRetImplicit(){
+ //asm volatile("push %eax");
+ //asm volatile("movl $24, %eax");
+///$24 is the index of the system call of sireturn - puting this index in reg eax
+ //asm volatile("int $64");
+//}
+*/
+/*------------------------------------------------*/
+
+
 int
 exec(char *path, char **argv)
 {
@@ -65,6 +78,30 @@ exec(char *path, char **argv)
     goto bad;
   clearpteu(pgdir, (char*)(sz - 2*PGSIZE));
   sp = sz;
+
+
+/*pazit-----------------------------------------------------*/
+/*
+int sigRetImplicitAddDiff = (int)exec - (int)sigRetImplicit;
+sp = sz - sigRetImplicitAddDiff;
+copyout(pgdir, sp, sigRetImplicit, sigRetImplicitAddDiff);
+proc->sigretAdd = sz - sigRetImplicitAddDiff;
+proc->procHandlingSigNow = 0;
+*/
+/*----------------------------------------------------------*/
+
+/*insert the imlicit call to sigreturn to the userSpace memory*/
+/* get the end and start add of the call to sig ret*/
+
+int retFuncSize =((int)alltraps - (int)sigretimplicit);  
+sp -= retFuncSize;
+/*The copyout and copyout_nofault functions copy len bytes of data from the kernel-space address kaddr to the user-space address uaddr*/
+copyout(pgdir, sp, sigretimplicit, retFuncSize);
+
+proc->sigretAdd = sp;  //return to this address after sig handling
+proc->procHandlingSigNow = 0;  //process no longer handling signal
+
+/*----------------------------------------------------------*/
 
   // Push argument strings, prepare rest of stack in ustack.
   for(argc = 0; argv[argc]; argc++) {
